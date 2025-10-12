@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智科2班班级统计</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#7C3AED',
+                        accent: '#EC4899',
+                        success: '#10B981',
+                        warning: '#F59E0B',
+                        danger: '#EF4444',
+                        dark: '#1E293B',
+                        light: '#F1F5F9'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .table-shadow {
+                box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.1);
+            }
+            .card-hover {
+                transition: all 0.3s ease;
+            }
+            .card-hover:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            }
+            .btn-hover {
+                transition: all 0.2s ease;
+            }
+            .btn-hover:hover {
+                transform: translateY(-1px);
+            }
+            .btn-hover:active {
+                transform: translateY(0);
+            }
+            .container-bg {
+                background: linear-gradient(135deg, #F2F7F5 0%, #E8F4EA 100%);
+            }
+            
+            /* 护眼模式调整 */
+            body {
+                color: #2D3748;
+            }
+            
+            .bg-white {
+                background-color: #F9FCFA !important;
+            }
+            
+            .bg-gray-50 {
+                background-color: #F3F8F5 !important;
+            }
+            .input-focus {
+                @apply focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200;
+            }
+            .status-badge {
+                @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ease-in-out;
+            }
+            .gradient-text {
+                background-clip: text;
+                -webkit-background-clip: text;
+                color: transparent;
+                background-image: linear-gradient(90deg, #4F46E5, #7C3AED);
+            }
+        }
+    </style>
+</head>
+<body class="container-bg min-h-screen font-sans text-dark">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 标题区域 -->
+        <div class="text-center mb-8">
+            <h1 class="text-[clamp(1.8rem,4vw,2.8rem)] font-bold gradient-text mb-2 tracking-tight">
+                智科2班班级统计
+            </h1>
+            <p class="text-gray-500 text-lg animate-fadeIn">班级作业提交情况统计系统</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- 搜索卡片 -->
+            <div class="bg-white rounded-xl p-4 md:p-6 card-hover">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex-1 relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                            <i class="fa fa-search"></i>
+                        </span>
+                        <input id="searchInput" type="text" 
+                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg input-focus"
+                            placeholder="搜索学生姓名...">
+                    </div>
+                    <div class="flex flex-1 gap-2">
+                        <select id="genderFilter" 
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg input-focus">
+                            <option value="all">全部性别</option>
+                            <option value="男">男生</option>
+                            <option value="女">女生</option>
+                        </select>
+                        <select id="statusFilter" 
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg input-focus">
+                            <option value="all">全部状态</option>
+                            <option value="submitted">已交</option>
+                            <option value="notSubmitted">未交</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 统计卡片 -->
+            <div class="bg-white rounded-xl p-4 md:p-6 card-hover lg:col-span-2">
+                <div class="flex flex-col md:flex-row items-center justify-between">
+                    <div class="flex-1 grid grid-cols-2 md:grid-cols-3 gap-4 mb-4 md:mb-0">
+                        <div class="text-center p-3 rounded-lg bg-gray-50">
+                            <p class="text-sm text-gray-500">总人数</p>
+                            <p id="totalCount" class="text-2xl font-bold text-primary">0</p>
+                        </div>
+                        <div class="text-center p-3 rounded-lg bg-gray-50">
+                            <p class="text-sm text-gray-500">已交人数</p>
+                            <p id="submittedCount" class="text-2xl font-bold text-success">0</p>
+                        </div>
+                        <div class="text-center p-3 rounded-lg bg-gray-50">
+                            <p class="text-sm text-gray-500">未交人数</p>
+                            <p id="notSubmittedCount" class="text-2xl font-bold text-danger">0</p>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-32 h-32">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 表格 -->
+        <div class="bg-white rounded-xl p-4 md:p-6 mb-6 table-shadow card-hover">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">序号</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">性别</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="classTable" class="bg-white divide-y divide-gray-200">
+                    </tbody>
+                </table>
+            </div>
+            <!-- 空状态提示 -->
+            <div id="emptyState" class="hidden py-12 text-center">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                    <i class="fa fa-search text-gray-400 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900">未找到匹配的学生</h3>
+                <p class="mt-1 text-gray-500">请尝试调整搜索条件或筛选选项</p>
+            </div>
+        </div>
+
+        <!-- 结果显示 -->
+        <div class="bg-white rounded-xl p-4 md:p-6 mb-6 table-shadow card-hover">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold text-dark">统计结果</h2>
+            </div>
+            <div class="mb-4">
+                <textarea id="resultText" class="w-full h-40 p-4 border border-gray-300 rounded-lg input-focus" placeholder="未交人员名单将显示在这里..."></textarea>
+            </div>
+            <div class="flex flex-wrap gap-4 justify-end">
+                <button id="copyBtn" class="px-6 py-2 bg-secondary text-white rounded-lg shadow btn-hover flex items-center">
+                    <i class="fa fa-copy mr-2"></i>复制结果
+                </button>
+                <button id="exportBtn" class="px-6 py-2 bg-primary text-white rounded-lg shadow btn-hover flex items-center">
+                    <i class="fa fa-download mr-2"></i>导出未交人员
+                </button>
+                <button id="resetBtn" class="px-6 py-2 bg-gray-200 text-dark rounded-lg shadow btn-hover flex items-center">
+                    <i class="fa fa-refresh mr-2"></i>重置
+                </button>
+            </div>
+        </div>
+
+        <footer class="text-center text-gray-500 text-sm mt-8">
+            <p> @哈哈哈哈哈哈😂</p>
+        </footer>
+    </div>
+
+    <script>
+        const classData = [
+            { id: 1, name: '彭敔洋', contact: '', gender: '男', status: false },
+            { id: 2, name: '侯婷', contact: '', gender: '女', status: false },
+            { id: 3, name: '焦阳', contact: '', gender: '男', status: false },
+            { id: 4, name: '刘卓炘', contact: '', gender: '男', status: false },
+            { id: 5, name: '钟胜节', contact: '', gender: '男', status: false },
+            { id: 6, name: '刘佳瑞', contact: '', gender: '男', status: false },
+            { id: 7, name: '林庆', contact: '', gender: '女', status: false },
+            { id: 8, name: '黄博健', contact: '', gender: '男', status: false },
+            { id: 9, name: '黄娟', contact: '', gender: '女', status: false },
+            { id: 10, name: '罗伟', contact: '', gender: '男', status: false },
+            { id: 11, name: '李泽明', contact: '', gender: '男', status: false },
+            { id: 12, name: '李治洋', contact: '', gender: '男', status: false },
+            { id: 13, name: '庞昊宇', contact: '', gender: '男', status: false },
+            { id: 14, name: '孙雨嘉琪', contact: '', gender: '女', status: false },
+            { id: 15, name: '沙智', contact: '', gender: '男', status: false },
+            { id: 16, name: '王迪汛', contact: '', gender: '男', status: false },
+            { id: 17, name: '肖俊康', contact: '', gender: '男', status: false },
+            { id: 18, name: '许佳璇', contact: '', gender: '女', status: false },
+            { id: 19, name: '徐志', contact: '', gender: '男', status: false },
+            { id: 20, name: '周博林', contact: '', gender: '男', status: false },
+            { id: 21, name: '诸葛栖颍', contact: '', gender: '女', status: false },
+            { id: 22, name: '郑杰', contact: '', gender: '男', status: false },
+            { id: 23, name: '赵柱程', contact: '', gender: '男', status: false },
+            { id: 24, name: '钟书仪', contact: '', gender: '男', status: false },
+            { id: 25, name: '曹杨', contact: '', gender: '男', status: false },
+            { id: 26, name: '任祺尧', contact: '', gender: '男', status: false },
+            { id: 27, name: '刘宇', contact: '', gender: '男', status: false },
+            { id: 28, name: '夏佳宏', contact: '', gender: '男', status: false },
+            { id: 29, name: '王春霖', contact: '', gender: '男', status: false },
+            { id: 30, name: '陈瀚', contact: '', gender: '男', status: false },
+            { id: 31, name: '唐梓夏', contact: '', gender: '男', status: false }
+        ];
+
+    
+        let filteredData = [...classData];
+        let statusChart = null;
+
+        // 渲染表格
+        function renderTable() {
+            const tableBody = document.getElementById('classTable');
+            const emptyState = document.getElementById('emptyState');
+            tableBody.innerHTML = '';
+
+            if (filteredData.length === 0) {
+                tableBody.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            tableBody.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            filteredData.forEach((student, index) => {
+                const row = document.createElement('tr');
+                row.className = index % 2 === 0 ? 'bg-white hover:bg-gray-50 transition-colors' : 'bg-gray-50 hover:bg-gray-100 transition-colors';
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark">${student.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${student.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="status-badge ${student.gender === '男' ? 'bg-blue-100 text-blue-800' : 'bg-pink-100 text-pink-800'}">
+                            ${student.gender}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <button class="status-btn px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ease-in-out transform hover:scale-105 active:scale-95 ${student.status ? 'bg-success text-white shadow-success/20' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}" data-id="${student.id}">
+                            ${student.status ? '已交' : '未交'}
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            // 添加按钮点击事件
+            document.querySelectorAll('.status-btn').forEach(btn => {
+                btn.addEventListener('click', toggleStatus);
+            });
+
+            updateStatistics();
+        }
+
+        // 切换状态
+        function toggleStatus(e) {
+            const id = parseInt(e.currentTarget.dataset.id);
+            const student = classData.find(s => s.id === id);
+            if (student) {
+                student.status = !student.status;
+                e.currentTarget.classList.add('scale-90');
+                setTimeout(() => {
+                    e.currentTarget.classList.remove('scale-90');
+                }, 100);
+                // 重新应用过滤条件
+                applyFilters();
+            }
+        }
+
+        // 应用过滤条件
+        function applyFilters() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            const genderFilter = document.getElementById('genderFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            filteredData = classData.filter(student => {
+                const matchesSearch = student.name.toLowerCase().includes(searchText);
+                const matchesGender = genderFilter === 'all' || student.gender === genderFilter;
+                const matchesStatus = statusFilter === 'all' || 
+                                     (statusFilter === 'submitted' && student.status) || 
+                                     (statusFilter === 'notSubmitted' && !student.status);
+                
+                return matchesSearch && matchesGender && matchesStatus;
+            });
+
+            renderTable();
+        }
+
+        // 更新统计信息
+        function updateStatistics() {
+            const totalCount = filteredData.length; // 使用过滤后的数据计算总人数
+            const submittedCount = filteredData.filter(student => student.status).length;
+            const notSubmittedCount = totalCount - submittedCount;
+
+            document.getElementById('totalCount').textContent = totalCount;
+            document.getElementById('submittedCount').textContent = submittedCount;
+            document.getElementById('notSubmittedCount').textContent = notSubmittedCount;
+            updateChart(submittedCount, notSubmittedCount);
+        }
+
+        // 更新饼图
+        function updateChart(submittedCount, notSubmittedCount) {
+            const ctx = document.getElementById('statusChart').getContext('2d');
+            const colors = {
+                submitted: '#10B981', 
+                notSubmitted: '#EF4444' 
+            };
+
+            if (statusChart) {
+                statusChart.destroy();
+            }
+
+            statusChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['已交', '未交'],
+                    datasets: [{
+                        data: [submittedCount, notSubmittedCount],
+                        backgroundColor: [colors.submitted, colors.notSubmitted],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    cutout: '70%',
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                    return `${label}: ${value}人 (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true,
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        // 导出未交人员
+        function exportNotSubmitted() {
+            const notSubmitted = classData.filter(student => !student.status);
+            const count = notSubmitted.length;
+            const names = notSubmitted.map(student => student.name).join('，');
+            
+            const resultText = document.getElementById('resultText');
+            if (count === 0) {
+                resultText.value = '所有人员均已提交！';
+                // 添加成功提示动画
+                resultText.classList.add('border-success', 'bg-green-50');
+                setTimeout(() => {
+                    resultText.classList.remove('border-success', 'bg-green-50');
+                }, 2000);
+            } else {
+                resultText.value = `${count}人未交，姓名：${names}`;
+            }
+        }
+
+        // 复制结果
+        function copyResult() {
+            const resultText = document.getElementById('resultText');
+            resultText.select();
+            document.execCommand('copy');
+            
+            // 显示复制成功的临时提示
+            const copyBtn = document.getElementById('copyBtn');
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<i class="fa fa-check mr-2"></i>已复制';
+            copyBtn.classList.add('bg-success');
+            copyBtn.classList.remove('bg-secondary');
+            
+            setTimeout(() => {
+                copyBtn.innerHTML = originalText;
+                copyBtn.classList.remove('bg-success');
+                copyBtn.classList.add('bg-secondary');
+            }, 2000);
+        }
+
+        // 重置所有
+        function resetAll() {
+          
+            if (confirm('确定要重置所有学生的状态吗？')) {
+                classData.forEach(student => {
+                    student.status = false;
+                });
+                
+                // 清空搜索和筛选
+                document.getElementById('searchInput').value = '';
+                document.getElementById('genderFilter').value = 'all';
+                document.getElementById('statusFilter').value = 'all';
+                applyFilters();
+                
+                // 清空结果文本框
+                document.getElementById('resultText').value = '';
+                
+                // 添加重置成功的视觉反馈
+                const resetBtn = document.getElementById('resetBtn');
+                resetBtn.classList.add('bg-success', 'text-white');
+                resetBtn.innerHTML = '<i class="fa fa-check mr-2"></i>已重置';
+                setTimeout(() => {
+                    resetBtn.classList.remove('bg-success', 'text-white');
+                    resetBtn.classList.add('bg-gray-200', 'text-dark');
+                    resetBtn.innerHTML = '<i class="fa fa-refresh mr-2"></i>重置';
+                }, 2000);
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            applyFilters();
+            document.getElementById('exportBtn').addEventListener('click', exportNotSubmitted);
+            document.getElementById('copyBtn').addEventListener('click', copyResult);
+            document.getElementById('resetBtn').addEventListener('click', resetAll);
+            document.getElementById('searchInput').addEventListener('input', applyFilters);
+            document.getElementById('genderFilter').addEventListener('change', applyFilters);
+            document.getElementById('statusFilter').addEventListener('change', applyFilters);
+        });
+    </script>
+</body>
+</html>
